@@ -6,7 +6,13 @@ import typer
 
 from .config import AppConfig, ExportConfig, JellyfinConfig, get_config_path, save_config
 from .cron import SCHEDULE_PRESETS, install_cron_job
-from .exporter import ExportError, SyncSummary, synchronize_collection, verify_hardlink_support
+from .exporter import (
+    ExportError,
+    SyncSummary,
+    ensure_destination_is_isolated,
+    synchronize_collection,
+    verify_hardlink_support,
+)
 from .jellyfin import JellyfinClient, JellyfinError
 
 
@@ -80,6 +86,7 @@ def run_install(config_path: Path, existing: AppConfig | None = None) -> Path:
 
     movies = client.get_collection_movies(collection.id)
     if movies:
+        ensure_destination_is_isolated(destination, movies)
         verify_hardlink_support(Path(movies[0].path), destination)
 
     export = ExportConfig(

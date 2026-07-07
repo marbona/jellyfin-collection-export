@@ -62,7 +62,7 @@ The installer will:
 1. Ask for the Jellyfin URL (default `http://localhost:8096`) and API key, validating the key immediately.
 2. List every Collection available in Jellyfin and let you pick one.
 3. Ask for a destination folder, offering to create it if it doesn't exist.
-4. Verify that source and destination are on the same filesystem and that hardlinks can be created there.
+4. Verify that the destination does not overlap with the real movie library, that source and destination are on the same filesystem, and that hardlinks can be created there.
 5. Ask for a synchronization interval (`hourly`, `every 6 hours`, `daily`, `weekly`, or a custom cron expression) and, if `cron` is available, install the scheduled job automatically.
 6. Optionally run the first synchronization right away.
 
@@ -76,7 +76,7 @@ If a configuration file already exists, `jce install` will ask for confirmation 
 | `jce sync` | Synchronize every configured export: create missing hardlinks, remove obsolete ones, print a summary. |
 | `jce sync --dry-run` | Show what `sync` would do, without changing anything on disk. |
 | `jce status` | Show collection, destination, movie/hardlink counts, missing files, last sync time and cron status. |
-| `jce doctor` | Health check: Jellyfin reachability, API key validity, collection existence, destination existence, filesystem compatibility, hardlink support, cron availability. |
+| `jce doctor` | Health check: Jellyfin reachability, API key validity, collection existence, destination existence, destination isolation from the library, filesystem compatibility, hardlink support, cron availability. |
 | `jce reinstall` | Re-run the installer, pre-filling every prompt with the current configuration (press Enter to keep a value, including the API key). |
 | `jce uninstall` | Remove the managed cron entry and the configuration/state files; optionally remove the exported hardlinks. Use `--yes` to skip every confirmation. |
 
@@ -119,6 +119,17 @@ Although the interactive installer currently manages a single export, the config
 6. Print a summary (`Created`, `Removed`, `Skipped`) and persist it to the state file.
 
 Synchronization is idempotent: running `jce sync` twice in a row produces the same result and does no unnecessary work.
+
+## Safety
+
+The "remove obsolete hardlinks" step only ever deletes files found by scanning inside the configured destination folder — it never looks at, or touches, paths outside of it. The one thing that stands between that and data loss is picking a destination that is genuinely separate from your real Jellyfin library.
+
+To guard against a mistyped path, `jce` refuses to install, reinstall, sync or pass `doctor`'s checks if the destination is equal to, nested inside, or an ancestor of any movie folder belonging to the exported collection. Even so:
+
+- Always point the destination at a dedicated, empty folder outside your library tree (e.g. `/mnt/video/guest-movies`, never `/mnt/video/Film` or a subfolder of it).
+- Before trusting a new setup, answer "no" to the installer's "run first synchronization now?" prompt, then run `jce sync --dry-run` yourself and review the planned changes.
+- `jce uninstall` only removes exported hardlinks after an explicit confirmation (or `--yes`) — read the printed destination path before confirming.
+- Original movie files are never renamed, moved, or written to; `jce` only ever reads them to create hardlinks.
 
 ## Scheduling
 

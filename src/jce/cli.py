@@ -21,6 +21,7 @@ from .cron import CronError, cron_available, cron_installed, remove_cron_job
 from .exporter import (
     ExportError,
     SyncSummary,
+    ensure_destination_is_isolated,
     ensure_same_filesystem,
     synchronize_collection,
     verify_hardlink_support,
@@ -153,11 +154,14 @@ def doctor(
             typer.echo(f"Destination exists: {'yes' if export.destination.exists() else 'no'}")
             movies = client.get_collection_movies(export.collection_id)
             if movies and export.destination.exists():
+                ensure_destination_is_isolated(export.destination, movies)
+                typer.echo("Destination isolated from library: yes")
                 ensure_same_filesystem(Path(movies[0].path), export.destination)
                 verify_hardlink_support(Path(movies[0].path), export.destination)
                 typer.echo("Same filesystem: yes")
                 typer.echo("Hardlink support: yes")
             else:
+                typer.echo("Destination isolated from library: skipped")
                 typer.echo("Same filesystem: skipped")
                 typer.echo("Hardlink support: skipped")
             typer.echo(f"Cron available: {'yes' if cron_available() else 'no'}")

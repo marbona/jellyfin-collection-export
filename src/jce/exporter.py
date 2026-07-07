@@ -24,6 +24,27 @@ def build_export_path(destination: Path, source: Path) -> Path:
     return destination / source.parent.name / source.name
 
 
+def _paths_overlap(a: Path, b: Path) -> bool:
+    return a == b or a in b.parents or b in a.parents
+
+
+def ensure_destination_is_isolated(destination: Path, movies: list[Movie]) -> None:
+    """Refuse to operate if destination overlaps the real movie library.
+
+    Obsolete-file cleanup only ever deletes inside `destination`, so this is
+    the one check standing between a mistyped path and losing real movies.
+    """
+    for movie in movies:
+        source_dir = Path(movie.path).parent
+        if _paths_overlap(destination, source_dir):
+            raise ExportError(
+                "Destination overlaps with the original movie location.\n"
+                f"Destination: {destination}\n"
+                f"Movie folder: {source_dir}\n"
+                "Choose a destination folder that is completely separate from your Jellyfin library."
+            )
+
+
 def ensure_same_filesystem(source: Path, destination: Path) -> None:
     if source.stat().st_dev != destination.stat().st_dev:
         raise ExportError(
@@ -61,6 +82,7 @@ def synchronize_collection(
     movies: list[Movie],
     dry_run: bool = False,
 ) -> SyncSummary:
+    ensure_destination_is_isolated(destination, movies)
     destination.mkdir(parents=True, exist_ok=True)
     desired = {build_export_path(destination, Path(movie.path)): Path(movie.path) for movie in movies}
     current = {
