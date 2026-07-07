@@ -54,10 +54,12 @@ class JellyfinClient:
                 "Create a valid administrator API key and try again."
             )
         if not response.ok:
+            detail = response.text.strip()
             raise JellyfinError(
                 "Jellyfin returned an unexpected response.\n"
                 f"HTTP status: {response.status_code}\n"
-                "Check the server logs and verify the requested collection exists."
+                f"Request: GET {url} params={params}\n"
+                f"Response body: {detail or '<empty>'}"
             )
         return response.json()
 
