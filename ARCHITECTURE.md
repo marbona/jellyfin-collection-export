@@ -49,6 +49,8 @@ Contains Typer commands.
 
 No business logic.
 
+Small amounts of orchestration are acceptable in the first implementation.
+
 
 ------------------------------------------------------------
 
@@ -107,6 +109,8 @@ Read and write YAML configuration.
 
 Configuration validation.
 
+Stores lightweight runtime state separately from user configuration when practical.
+
 
 ------------------------------------------------------------
 
@@ -117,6 +121,8 @@ Create
 Update
 
 Remove cron entries.
+
+The first implementation may focus on cron installation and detection before full lifecycle management exists.
 
 
 ------------------------------------------------------------
@@ -174,6 +180,10 @@ Delete obsolete hardlinks
 
 Generate report
 
+Desired state comes only from Jellyfin API data.
+
+Current state comes from the destination directory contents.
+
 
 ------------------------------------------------------------
 
@@ -203,6 +213,8 @@ Never copy movie files.
 Never move movie files.
 
 Never rename original movie files.
+
+Exported files should keep the source movie parent directory name under the destination root.
 
 
 ------------------------------------------------------------

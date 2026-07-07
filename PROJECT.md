@@ -48,6 +48,7 @@ The exported folder always mirrors the content of the selected Jellyfin Collecti
 - Linux
 - Jellyfin server
 - Administrator API Key
+- Python virtual environment support available on the host
 - Source and destination folders must reside on the same filesystem
 - Hardlink support required
 
@@ -87,6 +88,10 @@ The user chooses one.
 
 The Collection ID must be stored.
 
+The first implementation may write a single export entry.
+
+The configuration format must still support multiple exports.
+
 4.
 Destination folder
 
@@ -113,6 +118,8 @@ Available choices:
 - custom cron expression
 
 The installer creates the cron entry automatically.
+
+If cron is not available, the user-facing error must explain how to proceed manually.
 
 6.
 Run first synchronization
@@ -142,6 +149,8 @@ Shows planned operations without changing anything.
 jce status
 
 Displays configuration and synchronization status.
+
+The latest synchronization timestamp may be stored in a separate state file next to the main configuration.
 
 Example:
 
@@ -192,6 +201,8 @@ Removes:
 
 Must optionally remove exported hardlinks.
 
+The first implementation may provide manual uninstall instructions before full automation is added.
+
 
 ------------------------------------------------------------
 
@@ -223,6 +234,10 @@ Remove obsolete hardlinks
 
 Report summary
 
+The current state is discovered by scanning the destination directory.
+
+The desired state is derived only from Jellyfin API paths.
+
 
 ------------------------------------------------------------
 
@@ -246,6 +261,8 @@ Future versions may hardlink:
 - artwork
 - nfo files
 
+The first implementation may export only the main movie file.
+
 
 ------------------------------------------------------------
 
@@ -254,6 +271,8 @@ Future versions may hardlink:
 Log file:
 
 /var/log/jellyfin-collection-export.log
+
+Until file logging exists, the CLI may print human-readable summaries to stdout and stderr.
 
 Example
 

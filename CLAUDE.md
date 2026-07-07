@@ -48,6 +48,8 @@ Preferred libraries:
 - PyYAML
 - Rich
 
+Rich is optional for the first usable version.
+
 Avoid frameworks.
 
 Do not introduce dependencies unless they provide significant value.
@@ -181,6 +183,8 @@ Configuration should remain human editable.
 
 Never overwrite configuration without confirmation.
 
+Keep runtime state separate from user-edited configuration whenever possible.
+
 ------------------------------------------------------------
 
 # Testing
@@ -190,6 +194,8 @@ Design every module so it can be tested independently.
 Separate business logic from external dependencies.
 
 Mock Jellyfin during tests.
+
+If the execution environment cannot provide venv, pip or test tooling, keep the code compileable and leave clear host-side test instructions.
 
 ------------------------------------------------------------
 
@@ -244,6 +250,8 @@ Each PR should solve one problem.
 Every release should be installable and usable.
 
 The main branch should always remain functional.
+
+Prefer a smaller working command set over placeholder automation that is not yet reliable.
 
 ------------------------------------------------------------
 
