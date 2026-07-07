@@ -35,8 +35,29 @@ class JellyfinClient:
                 "Accept": "application/json",
             }
         )
+        self._user_id: str | None = None
 
-    def _get(self, endpoint: str, params: dict[str, str] | None = None) -> dict:
+    def _admin_user_id(self) -> str:
+        """A user id to satisfy endpoints that need one even for API-key requests.
+
+        An API key alone has no associated user, and Jellyfin's single-item
+        `/Items/{id}` endpoint errors out without a `userId` even though the
+        `/Items` list endpoint works fine without one. Any user with library
+        access works; prefer an administrator.
+        """
+        if self._user_id is None:
+            users = self._get("/Users")
+            admin = next((user for user in users if user.get("Policy", {}).get("IsAdministrator")), None)
+            chosen = admin or (users[0] if users else None)
+            if not chosen or not chosen.get("Id"):
+                raise JellyfinError(
+                    "No Jellyfin user found.\n"
+                    "Create at least one user account and try again."
+                )
+            self._user_id = str(chosen["Id"])
+        return self._user_id
+
+    def _get(self, endpoint: str, params: dict[str, str] | None = None) -> dict | list:
         url = f"{self.base_url}{endpoint}"
         try:
             response = self.session.get(url, params=params, timeout=self.timeout)
@@ -83,7 +104,7 @@ class JellyfinClient:
         ]
 
     def get_collection(self, collection_id: str) -> Collection:
-        payload = self._get(f"/Items/{collection_id}")
+        payload = self._get(f"/Items/{collection_id}", params={"userId": self._admin_user_id()})
         if not payload.get("Id"):
             raise JellyfinError(
                 "Collection not found in Jellyfin.\n"
