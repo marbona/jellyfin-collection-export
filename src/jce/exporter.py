@@ -19,9 +19,45 @@ class SyncSummary:
     skipped: int = 0
 
 
+SIDECAR_EXTENSIONS = {
+    ".nfo",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".srt",
+    ".sub",
+    ".idx",
+    ".ass",
+    ".vtt",
+}
+
+
 def build_export_path(destination: Path, source: Path) -> Path:
     """Preserve the movie folder name under the destination root."""
     return destination / source.parent.name / source.name
+
+
+def iter_movie_files(video_path: Path) -> list[Path]:
+    """The movie file plus sidecar metadata sitting next to it.
+
+    Jellyfin reads title/artwork from local .nfo and image files instead of
+    the internet when they are present; without them a hardlinked-only movie
+    shows up as a bare filename with no artwork. Sidecars are matched by
+    extension in the movie's own folder only, never recursing into
+    subfolders (e.g. Extras), so a flat, non-per-movie library layout can't
+    accidentally pull in unrelated files.
+    """
+    folder = video_path.parent
+    files = [video_path]
+    if not folder.is_dir():
+        return files
+    for sibling in sorted(folder.iterdir()):
+        if sibling == video_path or not sibling.is_file():
+            continue
+        if sibling.suffix.lower() in SIDECAR_EXTENSIONS:
+            files.append(sibling)
+    return files
 
 
 def _paths_overlap(a: Path, b: Path) -> bool:
@@ -84,7 +120,10 @@ def synchronize_collection(
 ) -> SyncSummary:
     ensure_destination_is_isolated(destination, movies)
     destination.mkdir(parents=True, exist_ok=True)
-    desired = {build_export_path(destination, Path(movie.path)): Path(movie.path) for movie in movies}
+    desired: dict[Path, Path] = {}
+    for movie in movies:
+        for file_path in iter_movie_files(Path(movie.path)):
+            desired[build_export_path(destination, file_path)] = file_path
     current = {
         path: path
         for path in destination.rglob("*")
@@ -101,8 +140,8 @@ def synchronize_collection(
     for export_path, source_path in desired.items():
         if not source_path.exists():
             raise ExportError(
-                "Source movie file not found.\n"
-                f"Movie path: {source_path}\n"
+                "Source file not found.\n"
+                f"Path: {source_path}\n"
                 "Refresh the collection in Jellyfin or remove missing items from the collection."
             )
         if export_path.exists():

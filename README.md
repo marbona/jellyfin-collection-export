@@ -112,7 +112,7 @@ Although the interactive installer currently manages a single export, the config
 ## How synchronization works
 
 1. Read the collection and its movies from the Jellyfin API.
-2. Compute the desired state (one folder + hardlink per movie, mirroring the original folder name) from the movie paths returned by Jellyfin.
+2. Compute the desired state (one folder per movie, mirroring the original folder name) from the movie paths returned by Jellyfin. Besides the video file itself, sidecar files sitting in the same source folder are hardlinked too — `.nfo`, images (`.jpg`, `.jpeg`, `.png`, `.webp`) and subtitles (`.srt`, `.sub`, `.idx`, `.ass`, `.vtt`) — so Jellyfin can read title and artwork from Radarr's local metadata instead of falling back to the bare filename when internet metadata lookup is disabled. Subfolders (e.g. `Extras/`) are never recursed into.
 3. Compare it against the current state of the destination folder.
 4. Create missing hardlinks, remove obsolete ones, skip files that are already correctly linked.
 5. Prune any directory left empty after removals.

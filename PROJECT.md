@@ -255,13 +255,15 @@ convitati-share/
     Unforgiven (1992)/
         Unforgiven (1992).mkv
 
-Future versions may hardlink:
+Alongside the movie file, sidecar files sitting in the same source folder are hardlinked too, matched by extension:
 
-- subtitles
-- artwork
-- nfo files
+- `.nfo`
+- images (`.jpg`, `.jpeg`, `.png`, `.webp`)
+- subtitles (`.srt`, `.sub`, `.idx`, `.ass`, `.vtt`)
 
-The first implementation may export only the main movie file.
+This lets Jellyfin read title and artwork from Radarr-written local metadata instead of falling back to the bare filename when internet metadata lookup is disabled.
+
+Subfolders (e.g. `Extras/`) are never recursed into.
 
 
 ------------------------------------------------------------
