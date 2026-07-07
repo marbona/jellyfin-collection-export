@@ -59,3 +59,16 @@ def install_cron_job(config_path: Path, schedule: str, command_name: str = "jce"
 
 def cron_installed() -> bool:
     return CRON_MARKER in read_crontab()
+
+
+def remove_cron_job() -> None:
+    if not cron_available():
+        raise CronError(
+            "Cannot remove cron job automatically.\n"
+            "The `crontab` command is not available on this system.\n"
+            "Remove the sync entry manually from your crontab."
+        )
+
+    lines = [line for line in read_crontab().splitlines() if CRON_MARKER not in line]
+    payload = "\n".join(lines) + ("\n" if lines else "")
+    subprocess.run(["crontab", "-"], input=payload, text=True, check=True)

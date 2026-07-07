@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,11 +12,12 @@ from .config import (
     ExportConfig,
     SyncState,
     get_config_path,
+    get_state_path,
     load_config,
     load_state,
     save_state,
 )
-from .cron import CronError, cron_available, cron_installed
+from .cron import CronError, cron_available, cron_installed, remove_cron_job
 from .exporter import (
     ExportError,
     SyncSummary,
@@ -77,6 +79,11 @@ def install(
 ) -> None:
     """Run the interactive installer."""
     config_path = get_config_path(config)
+    if config_path.exists() and not typer.confirm(
+        f"Configuration already exists at {config_path}. Overwrite?", default=False
+    ):
+        typer.echo("Aborted. Use `jce reinstall` to update the existing configuration.")
+        raise typer.Exit(code=1)
     try:
         saved_path = run_install(config_path)
     except (ConfigError, CronError, ExportError, JellyfinError) as exc:
@@ -164,17 +171,58 @@ def doctor(
 def reinstall(
     config: Path | None = typer.Option(None, "--config", help="Configuration file path."),
 ) -> None:
-    """Run the installer again."""
-    install(config=config)
+    """Run the installer again, preserving the existing configuration as defaults."""
+    config_path = get_config_path(config)
+    try:
+        existing = load_config(config_path) if config_path.exists() else None
+    except ConfigError:
+        existing = None
+
+    try:
+        saved_path = run_install(config_path, existing=existing)
+    except (ConfigError, CronError, ExportError, JellyfinError) as exc:
+        raise typer.Exit(code=_fail(str(exc))) from exc
+    typer.echo(f"Configuration written to {saved_path}")
 
 
 @app.command()
-def uninstall() -> None:
-    """Explain manual uninstall steps for now."""
-    typer.echo(
-        "Uninstall is not automated yet.\n"
-        "Remove the managed cron entry, delete the configuration file and optionally delete exported hardlinks."
-    )
+def uninstall(
+    config: Path | None = typer.Option(None, "--config", help="Configuration file path."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Assume yes for every confirmation."),
+) -> None:
+    """Remove the managed cron entry, configuration and optionally exported hardlinks."""
+    config_path = get_config_path(config)
+    try:
+        app_config = load_config(config_path) if config_path.exists() else None
+    except ConfigError:
+        app_config = None
+
+    if cron_installed():
+        if yes or typer.confirm("Remove the managed cron entry?", default=True):
+            try:
+                remove_cron_job()
+            except CronError as exc:
+                typer.echo(str(exc), err=True)
+            else:
+                typer.echo("Cron entry removed.")
+    else:
+        typer.echo("No managed cron entry found.")
+
+    if app_config:
+        for export in app_config.exports:
+            if export.destination.exists() and (
+                yes or typer.confirm(f"Remove exported hardlinks in {export.destination}?", default=False)
+            ):
+                shutil.rmtree(export.destination)
+                typer.echo(f"Removed {export.destination}")
+
+    state_path = get_state_path(config_path)
+    for path in (config_path, state_path):
+        if path.exists() and (yes or typer.confirm(f"Delete {path}?", default=True)):
+            path.unlink()
+            typer.echo(f"Deleted {path}")
+
+    typer.echo("To remove the `jce` executable, run: pip uninstall jellyfin-collection-export")
 
 
 def _fail(message: str) -> int:

@@ -10,9 +10,21 @@ from .exporter import ExportError, SyncSummary, synchronize_collection, verify_h
 from .jellyfin import JellyfinClient, JellyfinError
 
 
-def run_install(config_path: Path) -> Path:
-    url = typer.prompt("Jellyfin URL", default="http://localhost:8096").rstrip("/")
-    api_key = typer.prompt("API key", hide_input=True)
+def run_install(config_path: Path, existing: AppConfig | None = None) -> Path:
+    default_url = existing.jellyfin.url if existing else "http://localhost:8096"
+    url = typer.prompt("Jellyfin URL", default=default_url).rstrip("/")
+
+    if existing:
+        typer.echo("Press Enter to keep the existing API key.")
+        api_key = typer.prompt(
+            "API key",
+            default=existing.jellyfin.api_key,
+            hide_input=True,
+            show_default=False,
+        )
+    else:
+        api_key = typer.prompt("API key", hide_input=True)
+
     client = JellyfinClient(url, api_key)
     client.validate_api_key()
 
@@ -35,7 +47,14 @@ def run_install(config_path: Path) -> Path:
         )
     collection = collections[selected_index - 1]
 
-    destination = Path(typer.prompt("Destination folder")).expanduser().resolve()
+    existing_export = existing.exports[0] if existing and existing.exports else None
+
+    destination_prompt = (
+        typer.prompt("Destination folder", default=str(existing_export.destination))
+        if existing_export
+        else typer.prompt("Destination folder")
+    )
+    destination = Path(destination_prompt).expanduser().resolve()
     if destination.exists():
         if not destination.is_dir():
             raise ExportError(
@@ -54,22 +73,26 @@ def run_install(config_path: Path) -> Path:
             )
 
     typer.echo("Available schedules: " + ", ".join(SCHEDULE_PRESETS.keys()) + ", or a custom cron expression")
-    schedule = typer.prompt("Synchronization interval", default="daily")
+    schedule = typer.prompt(
+        "Synchronization interval",
+        default=existing_export.schedule if existing_export else "daily",
+    )
 
     movies = client.get_collection_movies(collection.id)
     if movies:
         verify_hardlink_support(Path(movies[0].path), destination)
 
     export = ExportConfig(
-        name=collection.name.lower().replace(" ", "-"),
+        name=existing_export.name if existing_export else collection.name.lower().replace(" ", "-"),
         collection_id=collection.id,
         collection_name=collection.name,
         destination=destination,
         schedule=schedule,
     )
+    other_exports = list(existing.exports[1:]) if existing else []
     config = AppConfig(
         jellyfin=JellyfinConfig(url=url, api_key=api_key),
-        exports=[export],
+        exports=[export, *other_exports],
     )
     saved_path = save_config(config, config_path)
 
